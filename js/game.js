@@ -22,6 +22,7 @@ const Game = {
     isHost: false,
     score: { player: 0, opponent: 0 },
     winningScore: 11,
+    goalCooldown: false,
 
     // Physics constants
     friction: 0.995,
@@ -123,9 +124,12 @@ const Game = {
             );
             this.playerPaddle.y = Math.max(minY, Math.min(maxY, y));
 
-            // Send position to opponent
+            // Send normalized position to opponent (0-1 range)
             if (Network.isConnected) {
-                Network.sendPaddlePosition(this.playerPaddle.x, this.playerPaddle.y);
+                Network.sendPaddlePosition(
+                    this.playerPaddle.x / this.width,
+                    this.playerPaddle.y / this.height
+                );
             }
         };
 
@@ -155,6 +159,7 @@ const Game = {
         this.isHost = isHost;
         this.score = { player: 0, opponent: 0 };
         this.isRunning = true;
+        this.goalCooldown = false;
 
         // Initialize game objects
         this.puck = {
@@ -296,10 +301,15 @@ const Game = {
         this.checkPaddleCollision(this.playerPaddle);
         this.checkPaddleCollision(this.opponentPaddle);
 
-        // Send puck state to opponent
+        // Send normalized puck state to opponent
         if (Network.isConnected) {
             Network.sendGameState({
-                puck: { x: puck.x, y: puck.y, vx: puck.vx, vy: puck.vy },
+                puck: {
+                    x: puck.x / this.width,
+                    y: puck.y / this.height,
+                    vx: puck.vx / this.width,
+                    vy: puck.vy / this.height
+                },
                 score: this.score
             });
         }
@@ -353,6 +363,10 @@ const Game = {
      * Handle goal scored
      */
     goalScored(scorer) {
+        // Prevent multiple goals from being scored rapidly
+        if (this.goalCooldown) return;
+        this.goalCooldown = true;
+
         this.score[scorer]++;
 
         Audio.play('goal');
@@ -369,6 +383,7 @@ const Game = {
         setTimeout(() => {
             if (this.isRunning) {
                 this.resetPuck(scorer === 'opponent');
+                this.goalCooldown = false;
             }
         }, 1500);
     },
@@ -387,10 +402,15 @@ const Game = {
         this.puck.vx = Math.sin(angle) * speed;
         this.puck.vy = Math.cos(angle) * speed * (towardPlayer ? 1 : -1);
 
-        // Sync with opponent
+        // Sync with opponent (normalized values)
         if (Network.isConnected) {
             Network.sendGameState({
-                puck: { x: this.puck.x, y: this.puck.y, vx: this.puck.vx, vy: this.puck.vy },
+                puck: {
+                    x: this.puck.x / this.width,
+                    y: this.puck.y / this.height,
+                    vx: this.puck.vx / this.width,
+                    vy: this.puck.vy / this.height
+                },
                 score: this.score
             });
         }
@@ -416,32 +436,36 @@ const Game = {
 
     /**
      * Update opponent paddle position (called from network)
+     * x, y are normalized (0-1 range)
      */
-    updateOpponentPaddle(x, y) {
+    updateOpponentPaddle(normX, normY) {
         if (!this.opponentPaddle) return;
 
-        // Mirror the position (opponent sees things flipped)
-        this.opponentPaddle.x = this.width - x;
-        this.opponentPaddle.y = this.height - y;
+        // Convert normalized position to local coordinates
+        // Mirror: their bottom-right becomes our top-left
+        const newX = (1 - normX) * this.width;
+        const newY = (1 - normY) * this.height;
 
         // Calculate velocity for physics
-        this.opponentPaddle.vx = (this.opponentPaddle.x - (this.opponentPaddle.lastX || this.opponentPaddle.x)) * 0.3;
-        this.opponentPaddle.vy = (this.opponentPaddle.y - (this.opponentPaddle.lastY || this.opponentPaddle.y)) * 0.3;
-        this.opponentPaddle.lastX = this.opponentPaddle.x;
-        this.opponentPaddle.lastY = this.opponentPaddle.y;
+        this.opponentPaddle.vx = (newX - this.opponentPaddle.x) * 0.3;
+        this.opponentPaddle.vy = (newY - this.opponentPaddle.y) * 0.3;
+
+        this.opponentPaddle.x = newX;
+        this.opponentPaddle.y = newY;
     },
 
     /**
      * Update game state from host (guest only)
+     * All positions are normalized (0-1 range)
      */
     updateFromHost(state) {
         if (this.isHost) return;
 
-        // Mirror puck position
-        this.puck.x = this.width - state.puck.x;
-        this.puck.y = this.height - state.puck.y;
-        this.puck.vx = -state.puck.vx;
-        this.puck.vy = -state.puck.vy;
+        // Convert normalized puck position to local coordinates (mirrored)
+        this.puck.x = (1 - state.puck.x) * this.width;
+        this.puck.y = (1 - state.puck.y) * this.height;
+        this.puck.vx = -state.puck.vx * this.width;
+        this.puck.vy = -state.puck.vy * this.height;
 
         // Update trail
         this.puckTrail.unshift({ x: this.puck.x, y: this.puck.y });
@@ -449,14 +473,14 @@ const Game = {
             this.puckTrail.pop();
         }
 
-        // Mirror score (opponent's player score is our opponent score)
+        // Mirror score (host's player score is our opponent score)
         const prevPlayerScore = this.score.player;
         const prevOpponentScore = this.score.opponent;
 
         this.score.player = state.score.opponent;
         this.score.opponent = state.score.player;
 
-        // Check for goal
+        // Check for goal sound (only if score changed)
         if (this.score.player > prevPlayerScore) {
             Audio.play('goal');
             UI.showGoalAnnouncement();
