@@ -31,9 +31,9 @@ const Game = {
     puckRadius: 0,
     goalWidth: 0,
 
-    // Trail effect
+    // Trail effect (disabled - was disorienting)
     puckTrail: [],
-    maxTrailLength: 15,
+    maxTrailLength: 0,
 
     // Animation
     lastTime: 0,
@@ -100,18 +100,21 @@ const Game = {
      * Set up touch/mouse input
      */
     setupInput() {
-        let lastTouch = { x: 0, y: 0 };
-
         const handleMove = (clientX, clientY) => {
             if (!this.isRunning || !this.playerPaddle) return;
 
             const rect = this.canvas.getBoundingClientRect();
-            const x = clientX - rect.left;
-            const y = clientY - rect.top;
 
-            // Calculate velocity for paddle (used in physics)
-            this.playerPaddle.vx = (x - this.playerPaddle.x) * 0.3;
-            this.playerPaddle.vy = (y - this.playerPaddle.y) * 0.3;
+            // Scale coordinates to match canvas logical size
+            const scaleX = this.width / rect.width;
+            const scaleY = this.height / rect.height;
+
+            const x = (clientX - rect.left) * scaleX;
+            const y = (clientY - rect.top) * scaleY;
+
+            // Store previous position for velocity calculation
+            const prevX = this.playerPaddle.x;
+            const prevY = this.playerPaddle.y;
 
             // Constrain to player's half (bottom half)
             const halfHeight = this.height / 2;
@@ -123,6 +126,10 @@ const Game = {
                 Math.min(this.width - this.paddleRadius - this.wallThickness, x)
             );
             this.playerPaddle.y = Math.max(minY, Math.min(maxY, y));
+
+            // Calculate velocity for paddle (used in physics for puck collision)
+            this.playerPaddle.vx = (this.playerPaddle.x - prevX) * 0.5;
+            this.playerPaddle.vy = (this.playerPaddle.y - prevY) * 0.5;
 
             // Send normalized position to opponent (0-1 range)
             if (Network.isConnected) {
@@ -138,17 +145,26 @@ const Game = {
             handleMove(e.clientX, e.clientY);
         });
 
-        // Touch events
+        // Touch events - use touchmove for continuous tracking
         this.canvas.addEventListener('touchmove', (e) => {
             e.preventDefault();
+            e.stopPropagation();
             const touch = e.touches[0];
             handleMove(touch.clientX, touch.clientY);
         }, { passive: false });
 
         this.canvas.addEventListener('touchstart', (e) => {
             e.preventDefault();
+            e.stopPropagation();
             const touch = e.touches[0];
             handleMove(touch.clientX, touch.clientY);
+        }, { passive: false });
+
+        // Prevent default touch behaviors on the whole document when touching canvas
+        document.body.addEventListener('touchmove', (e) => {
+            if (e.target === this.canvas) {
+                e.preventDefault();
+            }
         }, { passive: false });
     },
 
