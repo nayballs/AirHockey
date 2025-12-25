@@ -72,12 +72,14 @@ const Game = {
         const dpr = window.devicePixelRatio || 1;
         const rect = this.canvas.getBoundingClientRect();
 
-        this.width = rect.width;
-        this.height = rect.height;
+        // Use window dimensions as fallback if rect is 0
+        this.width = rect.width || window.innerWidth;
+        this.height = rect.height || window.innerHeight;
 
-        this.canvas.width = rect.width * dpr;
-        this.canvas.height = rect.height * dpr;
+        this.canvas.width = this.width * dpr;
+        this.canvas.height = this.height * dpr;
 
+        this.ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transform
         this.ctx.scale(dpr, dpr);
 
         // Calculate sizes based on screen

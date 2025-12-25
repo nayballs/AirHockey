@@ -213,7 +213,11 @@ const UI = {
      */
     startGame(isHost) {
         this.showScreen('game');
-        Game.start(isHost);
+        // Give the browser time to layout the canvas before starting
+        requestAnimationFrame(() => {
+            Game.resize();
+            Game.start(isHost);
+        });
     },
 
     /**
