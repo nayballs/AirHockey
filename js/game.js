@@ -461,6 +461,9 @@ const Game = {
     updateFromHost(state) {
         if (this.isHost) return;
 
+        // Safety check: if game objects aren't initialized yet, ignore update
+        if (!this.puck || !this.score) return;
+
         // Convert normalized puck position to local coordinates (mirrored)
         this.puck.x = (1 - state.puck.x) * this.width;
         this.puck.y = (1 - state.puck.y) * this.height;

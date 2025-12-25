@@ -156,14 +156,10 @@ const Network = {
             this.onConnected();
         }
 
-        // If host, start the game for both players
-        if (this.isHost) {
+        // If guest, tell host we are ready
+        if (!this.isHost) {
             setTimeout(() => {
-                this.send({ type: 'start' });
-                // Also start the game locally for the host
-                if (typeof UI !== 'undefined') {
-                    UI.startGame(true);
-                }
+                this.send({ type: 'ready' });
             }, 500);
         }
     },
@@ -173,6 +169,17 @@ const Network = {
      */
     handleMessage(data) {
         switch (data.type) {
+            case 'ready':
+                // Guest is ready, start the game!
+                if (this.isHost) {
+                    console.log('Guest is ready, starting game...');
+                    this.send({ type: 'start' });
+                    if (typeof UI !== 'undefined') {
+                        UI.startGame(true);
+                    }
+                }
+                break;
+
             case 'start':
                 // Game is starting
                 if (typeof UI !== 'undefined') {
@@ -196,8 +203,18 @@ const Network = {
 
             case 'playAgain':
                 // Opponent wants to play again
-                if (typeof UI !== 'undefined') {
-                    UI.startGame(this.isHost);
+                if (this.isHost) {
+                    this.send({ type: 'start' });
+                    if (typeof UI !== 'undefined') {
+                        UI.startGame(true);
+                    }
+                } else {
+                    // Forward intention to host if we are guest?
+                    // Actually, existing logic for playAgain might need checking,
+                    // but for now let's just match the old behavior or minimal fix.
+                    if (typeof UI !== 'undefined') {
+                        UI.startGame(this.isHost);
+                    }
                 }
                 break;
         }
