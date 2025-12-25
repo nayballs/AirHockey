@@ -49,7 +49,12 @@ const Network = {
             this.peer.on('connection', (conn) => {
                 console.log('Guest connected!');
                 this.connection = conn;
-                this.setupConnection();
+
+                // Wait for connection to be fully open
+                conn.on('open', () => {
+                    console.log('Connection fully open (host side)');
+                    this.setupConnection();
+                });
             });
 
             this.peer.on('error', (err) => {
@@ -151,10 +156,14 @@ const Network = {
             this.onConnected();
         }
 
-        // If host, send start signal
+        // If host, start the game for both players
         if (this.isHost) {
             setTimeout(() => {
                 this.send({ type: 'start' });
+                // Also start the game locally for the host
+                if (typeof UI !== 'undefined') {
+                    UI.startGame(true);
+                }
             }, 500);
         }
     },
