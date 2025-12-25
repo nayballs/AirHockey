@@ -1,0 +1,15 @@
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Context Mirror files
+.context-mirror/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Node modules (if ever added)
+node_modules/

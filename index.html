@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#1a0a2e">
+    <title>Air Hockey</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="assets/images/icon.svg">
+    <link rel="icon" type="image/svg+xml" href="assets/images/icon.svg">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- Menu Screen -->
+    <div id="menu-screen" class="screen">
+        <h1 class="title">AIR HOCKEY</h1>
+        <div class="menu-buttons">
+            <button id="create-btn" class="neon-btn cyan">CREATE GAME</button>
+            <button id="join-btn" class="neon-btn magenta">JOIN GAME</button>
+        </div>
+    </div>
+
+    <!-- Create Game Screen -->
+    <div id="create-screen" class="screen hidden">
+        <h2 class="subtitle">YOUR ROOM CODE</h2>
+        <div id="room-code" class="room-code">----</div>
+        <p class="waiting-text">Waiting for opponent...</p>
+        <button id="cancel-create-btn" class="neon-btn small">CANCEL</button>
+    </div>
+
+    <!-- Join Game Screen -->
+    <div id="join-screen" class="screen hidden">
+        <h2 class="subtitle">ENTER ROOM CODE</h2>
+        <div class="code-input-container">
+            <input type="text" id="code-input" class="code-input" maxlength="4" placeholder="----" autocomplete="off">
+        </div>
+        <button id="connect-btn" class="neon-btn cyan">CONNECT</button>
+        <button id="cancel-join-btn" class="neon-btn small">BACK</button>
+        <p id="join-error" class="error-text hidden">Connection failed. Try again.</p>
+    </div>
+
+    <!-- Game Screen -->
+    <div id="game-screen" class="screen hidden">
+        <div id="score-display" class="score-display">
+            <span id="opponent-score" class="score magenta">0</span>
+            <span class="score-divider">-</span>
+            <span id="player-score" class="score cyan">0</span>
+        </div>
+        <canvas id="game-canvas"></canvas>
+        <div id="goal-announcement" class="goal-announcement hidden">GOAL!</div>
+    </div>
+
+    <!-- Game Over Screen -->
+    <div id="gameover-screen" class="screen hidden">
+        <h2 id="winner-text" class="winner-text">YOU WIN!</h2>
+        <div id="final-score" class="final-score">11 - 5</div>
+        <button id="play-again-btn" class="neon-btn cyan">PLAY AGAIN</button>
+        <button id="menu-btn" class="neon-btn small">MENU</button>
+    </div>
+
+    <!-- Connection Lost Overlay -->
+    <div id="connection-lost" class="overlay hidden">
+        <div class="overlay-content">
+            <h2>CONNECTION LOST</h2>
+            <p>Opponent disconnected</p>
+            <button id="back-to-menu-btn" class="neon-btn small">BACK TO MENU</button>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <script src="js/audio.js"></script>
+    <script src="js/game.js"></script>
+    <script src="js/network.js"></script>
+    <script src="js/ui.js"></script>
+    <script>
+        // Register service worker for PWA
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').catch(err => {
+                console.log('SW registration failed:', err);
+            });
+        }
+    </script>
+</body>
+</html>
